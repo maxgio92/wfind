@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: write # needed to write releases
+  id-token: write # needed for keyless signing
+  packages: write # needed for ghcr access
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-22.04
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b #v3.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Fetch
+        run: git fetch --prune --force --tags
+
+      - name: Setup Go
+        uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a #v3.2.1
+        with:
+          go-version: '1.20'
+
+      - uses: sigstore/cosign-installer@c3667d99424e7e6047999fb6246c0da843953c65 #v3.0.1
+
+      - uses: anchore/sbom-action/download-syft@448520c4f19577ffce70a8317e619089054687e3 #v0.13.4
+
+      - uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish release
+        uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b #4.2.0
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

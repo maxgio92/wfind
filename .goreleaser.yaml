@@ -1,0 +1,78 @@
+project_name: wfind
+
+before:
+  hooks:
+  - go mod tidy
+
+builds:
+- env:
+  - CGO_ENABLED=0
+  - GO111MODULE=on
+  goos:
+  - linux
+  goarch:
+  - amd64
+  - arm64
+  ldflags: |
+    -X main.buildVersion={{ .Version }}
+    -s
+    -w
+
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+
+changelog:
+  sort: asc
+
+# creates SBOMs of all archives and the source tarball using syft
+# https://goreleaser.com/customization/sbom
+sboms:
+- id: archive
+  artifacts: archive
+- id: source
+  artifacts: source
+
+# signs the checksum file
+# all files (including the sboms) are included in the checksum, so we don't need to sign each one if we don't want to
+# https://goreleaser.com/customization/sign
+signs:
+- cmd: cosign
+  env:
+  - COSIGN_EXPERIMENTAL=1
+  certificate: '${artifact}.pem'
+  args:
+  - sign-blob
+  - '--output-certificate=${certificate}'
+  - '--output-signature=${signature}'
+  - '${artifact}'
+  - "--yes" # needed on cosign 2.0.0+
+  artifacts: all
+  output: true
+
+kos:
+- base_image: cgr.dev/chainguard/static
+  repository: ghcr.io/maxgio92/wfind
+  bare: true
+  tags:
+  - '{{ .Version }}'
+  - '{{ .Major }}.{{ .Minor }}'
+  - latest
+  platforms:
+  - linux/amd64
+  - linux/arm64
+  sbom: spdx
+
+# signs our docker image
+# https://goreleaser.com/customization/docker_sign
+docker_signs:
+- cmd: cosign
+  env:
+  - COSIGN_EXPERIMENTAL=1
+  artifacts: all
+  output: true
+  args:
+  - 'sign'
+  - '${artifact}'
+  - "--yes" # needed on cosign 2.0.0+
+

@@ -1,0 +1,44 @@
+linters-settings:
+  govet:
+    check-shadowing: true
+  maligned:
+    suggest-new: true
+  goconst:
+    min-len: 2
+    min-occurrences: 3
+  gci:
+    sections:
+      - standard # Captures all standard packages if they do not match another section.
+      - default # Contains all imports that could not be matched to another section type.
+      - prefix(github.com/maxgio92/wfind) # Groups all imports with the specified Prefix.
+  tagliatelle:
+    case:
+      rules:
+        json: snake
+
+linters:
+  enable-all: true
+  disable:
+    - interfacer
+    - godox
+    - golint
+    - scopelint
+    - maligned
+    - gochecknoglobals
+    - gochecknoinits
+    - exhaustivestruct
+    - exhaustruct
+    - ireturn
+    - lll
+    - nonamedreturns
+    - wrapcheck
+    - varnamelen
+
+issues:
+  exclude-rules:
+  - path: /
+    linters:
+    - typecheck
+
+run:
+  skip-dirs: []
