@@ -19,6 +19,7 @@ const (
 )
 
 var (
+	files       = []string{"hello", "world"}
 	subdirs     = []string{"foo", "bar", "baz"}
 	homedirBody = fmt.Sprintf(`
 <html>
@@ -28,9 +29,17 @@ var (
 <a href="%s/">%s/</a>
 <a href="%s/">%s/</a>
 <a href="%s/">%s/</a>
+<a href="%s">%s/</a>
+<a href="%s">%s/</a>
 </pre><hr></body>
 </html>
-`, homedir, homedir, subdirs[0], subdirs[0], subdirs[1], subdirs[1], subdirs[2], subdirs[2])
+`, homedir,
+		homedir,
+		subdirs[0], subdirs[0],
+		subdirs[1], subdirs[1],
+		subdirs[2], subdirs[2],
+		files[0], files[0],
+		files[1], files[1])
 	subdirBodyF = `
 <html>
 <head><title>Index of %s/%s/</title></head>
@@ -65,17 +74,12 @@ func initFileHierarchy() {
 	}
 }
 
-//nolint:dupl
-func TestFindFileRecursive(t *testing.T) {
-	t.Parallel()
-
-	initFileHierarchy()
-
+func initWebServer(t *testing.T) *mocha.Mocha {
 	m := mocha.New(t).CloseOnCleanup(t)
 	m.Start()
 
 	m.AddMocks(
-		// Home directory.
+		// home dir.
 		mocha.Get(expect.URLPath(fmt.Sprintf("/%s/", homedir)).
 			Or(expect.URLPath(fmt.Sprintf("/%s", homedir)))).
 			Reply(reply.OK().BodyString(homedirBody)))
@@ -83,6 +87,10 @@ func TestFindFileRecursive(t *testing.T) {
 	// Sub directories.
 	for i := range subdirs {
 		m.AddMocks(
+			// File in root.
+			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/", homedir, subdirs[i])).
+				Or(expect.URLPath(fmt.Sprintf("/%s/%s", homedir, subdirs[i])))).
+				Reply(reply.OK().BodyString(subdirBodies[0])),
 			// Sub directory.
 			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/", homedir, subdirs[i])).
 				Or(expect.URLPath(fmt.Sprintf("/%s/%s", homedir, subdirs[i])))).
@@ -95,6 +103,62 @@ func TestFindFileRecursive(t *testing.T) {
 			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/%s", homedir, subdirs[i], filename))).
 				Reply(reply.OK().BodyString("")))
 	}
+
+	return m
+}
+
+//nolint:dupl
+func TestFindFile(t *testing.T) {
+	t.Parallel()
+
+	initFileHierarchy()
+	m := initWebServer(t)
+
+	finder := find.NewFind(
+		find.WithSeedURLs([]string{fmt.Sprintf("%s/%s", m.URL(), homedir)}),
+		find.WithFilenameRegexp(`.+`),
+		find.WithFileType(find.FileTypeReg),
+		find.WithRecursive(false),
+		find.WithVerbosity(false),
+	)
+
+	found, err := finder.Find()
+
+	assert.Nil(t, err)
+	assert.NotNil(t, found)
+	assert.Len(t, found.URLs, len(files))
+	assert.Equal(t, found.BaseNames, files)
+}
+
+//nolint:dupl
+func TestFindDir(t *testing.T) {
+	t.Parallel()
+
+	initFileHierarchy()
+	m := initWebServer(t)
+
+	finder := find.NewFind(
+		find.WithSeedURLs([]string{fmt.Sprintf("%s/%s", m.URL(), homedir)}),
+		find.WithFilenameRegexp(`^.+$`),
+		find.WithFileType(find.FileTypeDir),
+		find.WithRecursive(false),
+		find.WithVerbosity(false),
+	)
+
+	found, err := finder.Find()
+
+	assert.Nil(t, err)
+	assert.NotNil(t, found)
+	assert.Len(t, found.URLs, len(subdirs))
+	assert.Equal(t, found.BaseNames, subdirs)
+}
+
+//nolint:dupl
+func TestFindFileRecursive(t *testing.T) {
+	t.Parallel()
+
+	initFileHierarchy()
+	m := initWebServer(t)
 
 	finder := find.NewFind(
 		find.WithSeedURLs([]string{fmt.Sprintf("%s/%s", m.URL(), homedir)}),
@@ -116,31 +180,7 @@ func TestFindDirRecursive(t *testing.T) {
 	t.Parallel()
 
 	initFileHierarchy()
-
-	m := mocha.New(t).CloseOnCleanup(t)
-	m.Start()
-
-	m.AddMocks(
-		// home dir.
-		mocha.Get(expect.URLPath(fmt.Sprintf("/%s/", homedir)).
-			Or(expect.URLPath(fmt.Sprintf("/%s", homedir)))).
-			Reply(reply.OK().BodyString(homedirBody)))
-
-	// Sub directories.
-	for i := range subdirs {
-		m.AddMocks(
-			// Sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/", homedir, subdirs[i])).
-				Or(expect.URLPath(fmt.Sprintf("/%s/%s", homedir, subdirs[i])))).
-				Reply(reply.OK().BodyString(subdirBodies[0])),
-			// File in sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/%s/", homedir, subdirs[i], dirname)).
-				Or(expect.URLPath(fmt.Sprintf("/%s/%s/%s", homedir, subdirs[i], dirname)))).
-				Reply(reply.OK().BodyString("")),
-			// Directory in sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/%s", homedir, subdirs[i], filename))).
-				Reply(reply.OK().BodyString("")))
-	}
+	m := initWebServer(t)
 
 	finder := find.NewFind(
 		find.WithSeedURLs([]string{fmt.Sprintf("%s/%s", m.URL(), homedir)}),
@@ -162,31 +202,7 @@ func TestFindFileRecursiveDotSlash(t *testing.T) {
 	t.Parallel()
 
 	initFileHierarchy()
-
-	m := mocha.New(t).CloseOnCleanup(t)
-	m.Start()
-
-	m.AddMocks(
-		// Home directory.
-		mocha.Get(expect.URLPath(fmt.Sprintf("/%s/", homedir)).
-			Or(expect.URLPath(fmt.Sprintf("/%s", homedir)))).
-			Reply(reply.OK().BodyString(homedirBody)))
-
-	// Sub directories.
-	for i := range subdirs {
-		m.AddMocks(
-			// Sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/", homedir, subdirs[i])).
-				Or(expect.URLPath(fmt.Sprintf("/%s/%s", homedir, subdirs[i])))).
-				Reply(reply.OK().BodyString(subdirBodiesDotSlash[0])),
-			// File in sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/%s/", homedir, subdirs[i], dirname)).
-				Or(expect.URLPath(fmt.Sprintf("/%s/%s/%s", homedir, subdirs[i], dirname)))).
-				Reply(reply.OK().BodyString("")),
-			// Directory in sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/%s", homedir, subdirs[i], filename))).
-				Reply(reply.OK().BodyString("")))
-	}
+	m := initWebServer(t)
 
 	finder := find.NewFind(
 		find.WithSeedURLs([]string{fmt.Sprintf("%s/%s", m.URL(), homedir)}),
@@ -208,31 +224,7 @@ func TestFindDirRecursiveDotSlash(t *testing.T) {
 	t.Parallel()
 
 	initFileHierarchy()
-
-	m := mocha.New(t).CloseOnCleanup(t)
-	m.Start()
-
-	m.AddMocks(
-		// home dir.
-		mocha.Get(expect.URLPath(fmt.Sprintf("/%s/", homedir)).
-			Or(expect.URLPath(fmt.Sprintf("/%s", homedir)))).
-			Reply(reply.OK().BodyString(homedirBody)))
-
-	// Sub directories.
-	for i := range subdirs {
-		m.AddMocks(
-			// Sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/", homedir, subdirs[i])).
-				Or(expect.URLPath(fmt.Sprintf("/%s/%s", homedir, subdirs[i])))).
-				Reply(reply.OK().BodyString(subdirBodiesDotSlash[0])),
-			// File in sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/%s/", homedir, subdirs[i], dirname)).
-				Or(expect.URLPath(fmt.Sprintf("/%s/%s/%s", homedir, subdirs[i], dirname)))).
-				Reply(reply.OK().BodyString("")),
-			// Directory in sub directory.
-			mocha.Get(expect.URLPath(fmt.Sprintf("/%s/%s/%s", homedir, subdirs[i], filename))).
-				Reply(reply.OK().BodyString("")))
-	}
+	m := initWebServer(t)
 
 	finder := find.NewFind(
 		find.WithSeedURLs([]string{fmt.Sprintf("%s/%s", m.URL(), homedir)}),
