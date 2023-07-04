@@ -45,7 +45,7 @@ func NewCmd() *cobra.Command {
 
 	var filename string
 
-	cmd.Flags().StringVarP(&filename, "name", "n", "", "Base of file name (the path with the leading directories removed) exact pattern.")
+	cmd.Flags().StringVarP(&filename, "name", "n", ".+", "Base of file name (the path with the leading directories removed) exact pattern.")
 
 	// As of now only exact glob pattern expressions are allowed. The expression then translated to an exact-match regular expression.
 	o.FilenameRegexp = fmt.Sprintf("^%s$", filename)
