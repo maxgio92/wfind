@@ -42,7 +42,7 @@ func (o *Options) crawlFiles() (*Result, error) {
 	// Create the collector settings
 	coOptions := []func(*colly.Collector){
 		colly.AllowedDomains(allowedDomains...),
-		colly.Async(false),
+		colly.Async(true),
 	}
 
 	if o.Verbose {
@@ -91,6 +91,9 @@ func (o *Options) crawlFiles() (*Result, error) {
 			return nil, errors.Wrap(err, fmt.Sprintf("error scraping file with URL %seedURLs", seedURL.String()))
 		}
 	}
+
+	// Wait until colly goroutines are finished.
+	co.Wait()
 
 	return &Result{BaseNames: files, URLs: urls}, nil
 }
