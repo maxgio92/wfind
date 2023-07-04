@@ -17,8 +17,6 @@ limitations under the License.
 package find
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -43,13 +41,7 @@ func NewCmd() *cobra.Command {
 		RunE:  o.Run,
 	}
 
-	var filename string
-
-	cmd.Flags().StringVarP(&filename, "name", "n", ".+", "Base of file name (the path with the leading directories removed) exact pattern.")
-
-	// As of now only exact glob pattern expressions are allowed. The expression then translated to an exact-match regular expression.
-	o.FilenameRegexp = fmt.Sprintf("^%s$", filename)
-
+	cmd.Flags().StringVarP(&o.FilenameRegexp, "name", "n", ".+", "Base of file name (the path with the leading directories removed) exact pattern.")
 	cmd.Flags().StringVarP(&o.FileType, "type", "t", "", "The file type")
 	cmd.Flags().BoolVarP(&o.Verbose, "verbose", "v", false, "Enable verbosity to log all visited HTTP(s) files")
 	cmd.Flags().BoolVarP(&o.Recursive, "recursive", "r", true, "Whether to examine entries recursing into directories. Disable to behave like GNU find -maxdepth=0 option.")
