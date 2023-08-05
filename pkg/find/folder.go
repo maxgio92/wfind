@@ -2,13 +2,14 @@ package find
 
 import (
 	"fmt"
-	"github.com/gocolly/colly"
-	d "github.com/gocolly/colly/debug"
-	"github.com/pkg/errors"
 	"net/url"
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/gocolly/colly"
+	d "github.com/gocolly/colly/debug"
+	"github.com/pkg/errors"
 )
 
 // crawlFolders returns a list of folder names found from each seed URL, filtered by folder name regex.
@@ -43,7 +44,8 @@ func (o *Options) crawlFolders() (*Result, error) {
 	// Create the collector settings
 	coOptions := []func(*colly.Collector){
 		colly.AllowedDomains(allowedDomains...),
-		colly.Async(true),
+		colly.Async(o.Async),
+		colly.MaxBodySize(o.MaxBodySize),
 	}
 
 	if o.Verbose {
@@ -52,6 +54,9 @@ func (o *Options) crawlFolders() (*Result, error) {
 
 	// Create the collector.
 	co := colly.NewCollector(coOptions...)
+	if o.ClientTransport != nil {
+		co.WithTransport(o.ClientTransport)
+	}
 
 	// Visit each specific folder.
 	co.OnHTML(HTMLTagLink, func(e *colly.HTMLElement) {

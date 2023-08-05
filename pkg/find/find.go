@@ -1,11 +1,14 @@
 package find
 
 import (
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/maxgio92/wfind/internal/network"
 )
 
 // Result represents the output of the Find job.
@@ -33,6 +36,15 @@ type Options struct {
 
 	// Verbose enables the Find job verbosity printing every visited URL.
 	Verbose bool
+
+	// Async represetns the option to scrape with multiple asynchronous coroutines.
+	Async bool
+
+	// ClientTransport represents the Transport used for the HTTP client.
+	ClientTransport http.RoundTripper
+
+	// MaxBodySize is the limit in bytes of each of the retrieved response body.
+	MaxBodySize int
 }
 
 type Option func(opts *Options)
@@ -67,6 +79,24 @@ func WithVerbosity(verbosity bool) Option {
 	}
 }
 
+func WithAsync(async bool) Option {
+	return func(opts *Options) {
+		opts.Async = async
+	}
+}
+
+func WithClientTransport(transport http.RoundTripper) Option {
+	return func(opts *Options) {
+		opts.ClientTransport = transport
+	}
+}
+
+func WithMaxBodySize(maxBodySize int) Option {
+	return func(opts *Options) {
+		opts.MaxBodySize = maxBodySize
+	}
+}
+
 // NewFind returns a new Find object to find files over HTTP and HTTPS.
 func NewFind(opts ...Option) *Options {
 	o := &Options{}
@@ -75,7 +105,20 @@ func NewFind(opts ...Option) *Options {
 		f(o)
 	}
 
+	o.init()
+
 	return o
+}
+
+// Validate validates the Find job options and returns an error.
+func (o *Options) init() {
+	if o.ClientTransport == nil {
+		o.ClientTransport = network.DefaultClientTransport
+	}
+	if o.MaxBodySize == 0 {
+		// Set max body size to 100 KB.
+		o.MaxBodySize = 100 * 1024
+	}
 }
 
 // Validate validates the Find job options and returns an error.
