@@ -6,9 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/maxgio92/wfind/internal/network"
+	"github.com/pkg/errors"
 )
 
 // Result represents the output of the Find job.
@@ -45,6 +44,16 @@ type Options struct {
 
 	// MaxBodySize is the limit in bytes of each of the retrieved response body.
 	MaxBodySize int
+
+	// ConnResetRetryBackOff controls the error handling on responses.
+	// If not nil, when the connection is reset by the peer (TCP RST), the request
+	// is retried with an exponential backoff interval.
+	ConnResetRetryBackOff *ExponentialBackOffOptions
+
+	// TimeoutRetryBackOff controls the error handling on responses.
+	// If not nil, when the connection times out (based on client timeout), the request
+	// is retried with an exponential backoff interval.
+	TimeoutRetryBackOff *ExponentialBackOffOptions
 }
 
 type Option func(opts *Options)
@@ -94,6 +103,18 @@ func WithClientTransport(transport http.RoundTripper) Option {
 func WithMaxBodySize(maxBodySize int) Option {
 	return func(opts *Options) {
 		opts.MaxBodySize = maxBodySize
+	}
+}
+
+func WithConnResetRetryBackOff(backoff *ExponentialBackOffOptions) Option {
+	return func(opts *Options) {
+		opts.ConnResetRetryBackOff = backoff
+	}
+}
+
+func WithConnTimeoutRetryBackOff(backoff *ExponentialBackOffOptions) Option {
+	return func(opts *Options) {
+		opts.TimeoutRetryBackOff = backoff
 	}
 }
 

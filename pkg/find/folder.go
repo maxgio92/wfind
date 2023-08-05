@@ -97,6 +97,9 @@ func (o *Options) crawlFolders() (*Result, error) {
 		}
 	})
 
+	// Manage errors.
+	co.OnError(o.handleError)
+
 	// Visit each root folder.
 	for _, seedURL := range seeds {
 		err := co.Visit(seedURL.String())
