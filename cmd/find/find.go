@@ -17,20 +17,28 @@ limitations under the License.
 package find
 
 import (
+	"github.com/maxgio92/wfind/internal/network"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"time"
 
 	"github.com/maxgio92/wfind/internal/output"
 	"github.com/maxgio92/wfind/pkg/find"
 )
 
-type options struct {
+type Command struct {
+	ConnectionTimeout   time.Duration
+	KeepAliveInterval   time.Duration
+	TLSHandshakeTimeout time.Duration
+	IdleConnTimeout     time.Duration
+	ConnPoolSize        int
+	ConnPoolPerHostSize int
 	*find.Options
 }
 
 // NewCmd returns a new find command.
 func NewCmd() *cobra.Command {
-	o := &options{
+	o := &Command{
 		Options: &find.Options{},
 	}
 
@@ -41,10 +49,35 @@ func NewCmd() *cobra.Command {
 		RunE:  o.Run,
 	}
 
-	cmd.Flags().StringVarP(&o.FilenameRegexp, "name", "n", ".+", "Base of file name (the path with the leading directories removed) exact pattern.")
-	cmd.Flags().StringVarP(&o.FileType, "type", "t", "", "The file type")
-	cmd.Flags().BoolVarP(&o.Verbose, "verbose", "v", false, "Enable verbosity to log all visited HTTP(s) files")
-	cmd.Flags().BoolVarP(&o.Recursive, "recursive", "r", true, "Whether to examine entries recursing into directories. Disable to behave like GNU find -maxdepth=0 option.")
+	// General flags.
+	cmd.Flags().StringVarP(&o.FilenameRegexp, "name", "n", ".+",
+		"Base of file name (the path with the leading directories removed) exact pattern.")
+	cmd.Flags().StringVarP(&o.FileType, "type", "t", "",
+		"The file type")
+	cmd.Flags().BoolVarP(&o.Verbose, "verbose", "v", false,
+		"Enable verbosity to log all visited HTTP(s) files")
+	cmd.Flags().BoolVarP(&o.Recursive, "recursive", "r", true,
+		"Whether to examine entries recursing into directories. Disable to behave like GNU find -maxdepth=0 option.")
+	cmd.Flags().BoolVar(&o.Async, "async", true,
+		"Whether to scrape with asynchronous jobs.")
+
+	// Timeouts flags.
+	cmd.Flags().DurationVar(&o.ConnectionTimeout, "connection-timeout", network.DefaultTimeout,
+		"The maximum amount of time in milliseconds a dial will wait for a connect to complete.")
+	cmd.Flags().DurationVar(&o.KeepAliveInterval, "keep-alive-interval", network.DefaultKeepAlive,
+		"The interval between keep-alive probes for an active network connection.")
+	cmd.Flags().DurationVar(&o.TLSHandshakeTimeout, "tls-handshake-timeout", network.DefaultTLSHandshakeTimeout,
+		"The maximum amount of time in milliseconds a connection will wait for a TLS handshake.")
+	cmd.Flags().DurationVar(&o.IdleConnTimeout, "idle-connection-timeout", network.DefaultIdleConnTimeout,
+		"The maximum amount of time in milliseconds a connection will remain idle before closing itself.")
+
+	// Sizes flags.
+	cmd.Flags().IntVar(&o.ConnPoolSize, "connection-pool-size", network.DefaultMaxIdleConns,
+		"The maximum number of idle connections across all hosts.")
+	cmd.Flags().IntVar(&o.ConnPoolPerHostSize, "connection-pool-size-per-host", network.DefaultMaxIdleConnsPerHost,
+		"The maximum number of idle connections across for each host.")
+	cmd.Flags().IntVar(&o.MaxBodySize, "max-body-size", 64,
+		"The maximum size in bytes a response body is read for each request.")
 
 	return cmd
 }
@@ -56,15 +89,15 @@ func Execute() {
 	output.ExitOnErr(cmd.Execute())
 }
 
-func (o *options) validate() error {
+func (o *Command) validate() error {
 	if err := o.Validate(); err != nil {
-		return errors.Wrap(err, "error validating options")
+		return errors.Wrap(err, "error validating Command")
 	}
 
 	return nil
 }
 
-func (o *options) Run(_ *cobra.Command, args []string) error {
+func (o *Command) Run(_ *cobra.Command, args []string) error {
 	var seed string
 	if len(args) > 0 {
 		seed = args[0]
@@ -76,12 +109,27 @@ func (o *options) Run(_ *cobra.Command, args []string) error {
 		return err
 	}
 
+	dialer := network.NewDialer(
+		network.WithTimeout(o.ConnectionTimeout),
+		network.WithKeepAlive(o.KeepAliveInterval),
+	)
+
+	transport := network.NewTransport(
+		network.WithDialer(dialer),
+		network.WithIdleConnsTimeout(o.IdleConnTimeout),
+		network.WithTLSHandshakeTimeout(o.TLSHandshakeTimeout),
+		network.WithMaxIdleConns(o.ConnPoolSize),
+		network.WithMaxIdleConnsPerHost(o.ConnPoolPerHostSize),
+	)
+
 	finder := find.NewFind(
 		find.WithSeedURLs(o.SeedURLs),
 		find.WithFilenameRegexp(o.FilenameRegexp),
 		find.WithFileType(o.FileType),
 		find.WithRecursive(o.Recursive),
 		find.WithVerbosity(o.Verbose),
+		find.WithAsync(o.Async),
+		find.WithClientTransport(transport),
 	)
 
 	found, err := finder.Find()

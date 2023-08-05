@@ -42,7 +42,8 @@ func (o *Options) crawlFiles() (*Result, error) {
 	// Create the collector settings
 	coOptions := []func(*colly.Collector){
 		colly.AllowedDomains(allowedDomains...),
-		colly.Async(true),
+		colly.Async(o.Async),
+		colly.MaxBodySize(o.MaxBodySize),
 	}
 
 	if o.Verbose {
@@ -51,6 +52,9 @@ func (o *Options) crawlFiles() (*Result, error) {
 
 	// Create the collector.
 	co := colly.NewCollector(coOptions...)
+	if o.ClientTransport != nil {
+		co.WithTransport(o.ClientTransport)
+	}
 
 	// Add the callback to Visit the linked resource, for each HTML element found
 	co.OnHTML(HTMLTagLink, func(e *colly.HTMLElement) {
@@ -88,7 +92,7 @@ func (o *Options) crawlFiles() (*Result, error) {
 	for _, seedURL := range seeds {
 		err := co.Visit(seedURL.String())
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("error scraping file with URL %seedURLs", seedURL.String()))
+			return nil, errors.Wrap(err, fmt.Sprintf("error scraping file with URL %s", seedURL.String()))
 		}
 	}
 
