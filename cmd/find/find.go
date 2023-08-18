@@ -109,11 +109,13 @@ func (o *Command) Run(_ *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Network client dialer.
 	dialer := network.NewDialer(
 		network.WithTimeout(o.ConnectionTimeout),
 		network.WithKeepAlive(o.KeepAliveInterval),
 	)
 
+	// HTTP client transport.
 	transport := network.NewTransport(
 		network.WithDialer(dialer),
 		network.WithIdleConnsTimeout(o.IdleConnTimeout),
@@ -122,6 +124,7 @@ func (o *Command) Run(_ *cobra.Command, args []string) error {
 		network.WithMaxIdleConnsPerHost(o.ConnPoolPerHostSize),
 	)
 
+	// Wfind finder.
 	finder := find.NewFind(
 		find.WithSeedURLs(o.SeedURLs),
 		find.WithFilenameRegexp(o.FilenameRegexp),

@@ -17,25 +17,31 @@ import (
 // It accepts a colly.Response and the error.
 func (o *Options) handleError(response *colly.Response, err error) {
 	switch {
+	// Context timed out.
 	case errors.Is(err, context.DeadlineExceeded):
 		log.Println(err, "context deadline has exceeded")
+	// Request has timed out.
 	case os.IsTimeout(err):
 		log.Println(err, "connection has timed out")
 		if o.TimeoutRetryBackOff != nil {
 			log.Println(err, "Will backoff...")
 			retryWithExponentialBackoff(response.Request.Retry, o.TimeoutRetryBackOff)
 		}
+	// Connection has been reset (RST) by the peer.
 	case errors.Is(err, unix.ECONNRESET):
 		log.Println(err, "connection has been reset by peer")
 		if o.ConnResetRetryBackOff != nil {
 			log.Println(err, "Will backoff...")
 			retryWithExponentialBackoff(response.Request.Retry, o.ConnResetRetryBackOff)
 		}
+	// Other failures.
 	default:
 		log.Printf("error: %v\n", err)
 	}
 }
 
+// retryWithExtponentialBackoff retries with an exponential backoff a function.
+// Exponential backoff can be tuned with options accepted as arguments to the function.
 func retryWithExponentialBackoff(retryF func() error, opts *ExponentialBackOffOptions) {
 	ticker := backoff.NewTicker(
 		utils.NewExponentialBackOff(
@@ -52,20 +58,21 @@ func retryWithExponentialBackoff(retryF func() error, opts *ExponentialBackOffOp
 	// so operations that take a while to fail could run in quick succession.
 	for range ticker.C {
 		if err = retryF(); err != nil {
-			log.Println(err, "will backoff...")
+			// Retry.
+			log.Println(err, "will retry...")
 			continue
 		}
 
 		ticker.Stop()
-		log.Println("OK")
+		log.Println("retried with success")
 		break
 	}
 
 	if err != nil {
-		// Operation has failed.
-		log.Println(err, "Failed")
+		// Retry has failed.
+		log.Println(err, "retry limit exhausted")
 		return
 	}
 
-	// Operation is successful.
+	// Retry is successful.
 }
