@@ -2,13 +2,14 @@ package find
 
 import (
 	"fmt"
-	"github.com/gocolly/colly"
-	d "github.com/gocolly/colly/debug"
-	"github.com/pkg/errors"
 	"net/url"
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/gocolly/colly"
+	d "github.com/gocolly/colly/debug"
+	"github.com/pkg/errors"
 )
 
 // crawlFiles returns a list of file names found from the seed URL, filtered by file name regex.
@@ -81,8 +82,8 @@ func (o *Options) crawlFiles() (*Result, error) {
 			}
 		}
 
-		// Do not traverse the hierarchy in reverse order.
-		if o.Recursive && !(strings.Contains(href, UpDir)) && href != RootDir {
+		// Traverse the folder hierarchy in top-down order.
+		if o.Recursive && len(folderMatch) > 0 && !(strings.Contains(href, UpDir)) && href != RootDir {
 			//nolint:errcheck
 			co.Visit(e.Request.AbsoluteURL(href))
 		}
