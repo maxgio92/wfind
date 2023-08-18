@@ -6,6 +6,12 @@ import (
 	"github.com/cenkalti/backoff"
 )
 
+var DefaultExponentialBackOffOptions = &ExponentialBackOffOptions{
+	InitialInterval: 2 * time.Second,
+	MaxInterval:     10 * time.Second,
+	MaxElapsedTime:  5 * time.Minute,
+}
+
 type ExponentialBackOffOptions struct {
 	InitialInterval time.Duration
 	MaxInterval     time.Duration
