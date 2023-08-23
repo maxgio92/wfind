@@ -45,6 +45,11 @@ type Options struct {
 	// MaxBodySize is the limit in bytes of each of the retrieved response body.
 	MaxBodySize int
 
+	// ContextDeadlineRetryBackOff controls the error handling on responses.
+	// If not nil, when the request context deadline exceeds, the request
+	// is retried with an exponential backoff interval.
+	ContextDeadlineRetryBackOff *ExponentialBackOffOptions
+
 	// ConnResetRetryBackOff controls the error handling on responses.
 	// If not nil, when the connection is reset by the peer (TCP RST), the request
 	// is retried with an exponential backoff interval.
@@ -103,6 +108,12 @@ func WithClientTransport(transport http.RoundTripper) Option {
 func WithMaxBodySize(maxBodySize int) Option {
 	return func(opts *Options) {
 		opts.MaxBodySize = maxBodySize
+	}
+}
+
+func WithContextDeadlineRetryBackOff(backoff *ExponentialBackOffOptions) Option {
+	return func(opts *Options) {
+		opts.ContextDeadlineRetryBackOff = backoff
 	}
 }
 
