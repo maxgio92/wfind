@@ -24,7 +24,7 @@ var _ = Describe("File crawling", func() {
 				find.WithFilenameRegexp(fileRegexp),
 				find.WithFileType(find.FileTypeReg),
 				find.WithRecursive(true),
-				find.WithMaxBodySize(1024*512),
+				find.WithMaxBodySize(find.DefaultMaxBodySize),
 				find.WithContextDeadlineRetryBackOff(find.DefaultExponentialBackOffOptions),
 				find.WithConnTimeoutRetryBackOff(find.DefaultExponentialBackOffOptions),
 				find.WithConnResetRetryBackOff(find.DefaultExponentialBackOffOptions),
