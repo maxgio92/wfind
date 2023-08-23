@@ -24,5 +24,10 @@ import (
 )
 
 func main() {
-	output.ExitOnErr(doc.GenMarkdownTree(find.NewCmd(), "./doc"))
+	output.ExitOnErr(doc.GenMarkdownTreeCustom(
+		find.NewCmd(),
+		"./docs",
+		func(s string) string { return "" },
+		func(s string) string { return s },
+	))
 }

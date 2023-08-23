@@ -44,10 +44,11 @@ func NewCmd() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "wfind URL",
-		Short: "Find folders and files in web sites using HTTP or HTTPS",
-		Args:  cobra.MinimumNArgs(1),
-		RunE:  o.Run,
+		Use:               "wfind URL",
+		Short:             "Find folders and files in web sites using HTTP or HTTPS",
+		DisableAutoGenTag: true,
+		Args:              cobra.MinimumNArgs(1),
+		RunE:              o.Run,
 	}
 
 	// General flags.
