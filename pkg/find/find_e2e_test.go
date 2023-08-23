@@ -1,3 +1,5 @@
+//go:build all_tests || e2e_tests
+
 /*
 Copyright © 2023 maxgio92 me@maxgio.me
 
