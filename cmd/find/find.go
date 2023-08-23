@@ -17,11 +17,12 @@ limitations under the License.
 package find
 
 import (
-	"github.com/maxgio92/wfind/internal/network"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
+	"github.com/maxgio92/wfind/internal/network"
 	"github.com/maxgio92/wfind/internal/output"
 	"github.com/maxgio92/wfind/pkg/find"
 )
