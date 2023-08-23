@@ -27,10 +27,10 @@ import (
 )
 
 type Command struct {
-	ConnectionTimeout   time.Duration
-	KeepAliveInterval   time.Duration
-	TLSHandshakeTimeout time.Duration
-	IdleConnTimeout     time.Duration
+	ConnectionTimeout   int
+	KeepAliveInterval   int
+	TLSHandshakeTimeout int
+	IdleConnTimeout     int
 	ConnPoolSize        int
 	ConnPoolPerHostSize int
 	*find.Options
@@ -62,13 +62,13 @@ func NewCmd() *cobra.Command {
 		"Whether to scrape with asynchronous jobs.")
 
 	// Timeouts flags.
-	cmd.Flags().DurationVar(&o.ConnectionTimeout, "connection-timeout", network.DefaultTimeout,
+	cmd.Flags().IntVar(&o.ConnectionTimeout, "connection-timeout", network.DefaultTimeout,
 		"The maximum amount of time in milliseconds a dial will wait for a connect to complete.")
-	cmd.Flags().DurationVar(&o.KeepAliveInterval, "keep-alive-interval", network.DefaultKeepAlive,
+	cmd.Flags().IntVar(&o.KeepAliveInterval, "keep-alive-interval", network.DefaultKeepAlive,
 		"The interval between keep-alive probes for an active network connection.")
-	cmd.Flags().DurationVar(&o.TLSHandshakeTimeout, "tls-handshake-timeout", network.DefaultTLSHandshakeTimeout,
+	cmd.Flags().IntVar(&o.TLSHandshakeTimeout, "tls-handshake-timeout", network.DefaultTLSHandshakeTimeout,
 		"The maximum amount of time in milliseconds a connection will wait for a TLS handshake.")
-	cmd.Flags().DurationVar(&o.IdleConnTimeout, "idle-connection-timeout", network.DefaultIdleConnTimeout,
+	cmd.Flags().IntVar(&o.IdleConnTimeout, "idle-connection-timeout", network.DefaultIdleConnTimeout,
 		"The maximum amount of time in milliseconds a connection will remain idle before closing itself.")
 
 	// Sizes flags.
@@ -76,7 +76,7 @@ func NewCmd() *cobra.Command {
 		"The maximum number of idle connections across all hosts.")
 	cmd.Flags().IntVar(&o.ConnPoolPerHostSize, "connection-pool-size-per-host", network.DefaultMaxIdleConnsPerHost,
 		"The maximum number of idle connections across for each host.")
-	cmd.Flags().IntVar(&o.MaxBodySize, "max-body-size", 64,
+	cmd.Flags().IntVar(&o.MaxBodySize, "max-body-size", find.DefaultMaxBodySize,
 		"The maximum size in bytes a response body is read for each request.")
 
 	return cmd
@@ -111,15 +111,15 @@ func (o *Command) Run(_ *cobra.Command, args []string) error {
 
 	// Network client dialer.
 	dialer := network.NewDialer(
-		network.WithTimeout(o.ConnectionTimeout),
-		network.WithKeepAlive(o.KeepAliveInterval),
+		network.WithTimeout(time.Duration(o.ConnectionTimeout)*time.Millisecond),
+		network.WithKeepAlive(time.Duration(o.KeepAliveInterval)*time.Millisecond),
 	)
 
 	// HTTP client transport.
 	transport := network.NewTransport(
 		network.WithDialer(dialer),
-		network.WithIdleConnsTimeout(o.IdleConnTimeout),
-		network.WithTLSHandshakeTimeout(o.TLSHandshakeTimeout),
+		network.WithIdleConnsTimeout(time.Duration(o.IdleConnTimeout)*time.Millisecond),
+		network.WithTLSHandshakeTimeout(time.Duration(o.TLSHandshakeTimeout)*time.Millisecond),
 		network.WithMaxIdleConns(o.ConnPoolSize),
 		network.WithMaxIdleConnsPerHost(o.ConnPoolPerHostSize),
 	)
@@ -132,7 +132,11 @@ func (o *Command) Run(_ *cobra.Command, args []string) error {
 		find.WithRecursive(o.Recursive),
 		find.WithVerbosity(o.Verbose),
 		find.WithAsync(o.Async),
+		find.WithMaxBodySize(o.MaxBodySize),
 		find.WithClientTransport(transport),
+		find.WithContextDeadlineRetryBackOff(find.DefaultExponentialBackOffOptions),
+		find.WithConnResetRetryBackOff(find.DefaultExponentialBackOffOptions),
+		find.WithConnTimeoutRetryBackOff(find.DefaultExponentialBackOffOptions),
 	)
 
 	found, err := finder.Find()
