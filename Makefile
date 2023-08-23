@@ -27,7 +27,7 @@ $(foreach bin,$(bins),\
 
 .PHONY: doc
 doc:
-	@go run doc/doc.go
+	@go run docs/gen.go
 
 .PHONY: build
 build:
