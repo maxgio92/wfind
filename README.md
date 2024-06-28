@@ -1,4 +1,4 @@
-# wfind: like find but for web sites
+# ![](./logo.svg) like find but for web sites
 
 `wfind` (world wide web find) search for files in a web site directory hierarchy over HTTP, through HTML references.
 
